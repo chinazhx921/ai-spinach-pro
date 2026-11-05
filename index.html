@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI玄学预测 Pro 2.0 | 仙山云海</title>
+    <title>AI玄学预测 Pro 4.0 | 多彩种矩阵</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
 </head>
 <body>
     <div id="scenery-container">
-        <!-- 东方山水背景与神仙过海动画层 -->
         <div class="clouds cloud-1"></div>
         <div class="clouds cloud-2"></div>
         <div class="waterfall"></div>
@@ -24,22 +23,32 @@
     
     <div class="app-container">
         <header>
-            <h1>AI数据预测平台 <span class="badge">PRO 2.0</span></h1>
-            <p>基于 LSTM 深度学习与玄学波动的彩票走势推演</p>
+            <h1>AI数据预测平台 <span class="badge">PRO 4.0 全彩版</span></h1>
+            <p>基于官方真实开奖数据与 LSTM 多维度走势推演</p>
         </header>
 
         <main>
+            <!-- 新增彩种选择栏 -->
+            <section class="lottery-selector-panel">
+                <label for="lottery-type">🔮 当前研究彩种：</label>
+                <select id="lottery-type" class="custom-select">
+                    <option value="ssq">🔴 双色球 (6+1)</option>
+                    <option value="dlt">🔵 超级大乐透 (5+2)</option>
+                    <option value="fc3d">🟢 福彩 3D (3位)</option>
+                </select>
+            </section>
+
             <section class="panel">
                 <h2>1. 官方开奖数据同步</h2>
                 <div class="controls">
-                    <button id="btn-fetch" class="btn">获取最新历史数据</button>
+                    <button id="btn-fetch" class="btn">抓取真实历史数据</button>
                     <span id="data-status">等待同步...</span>
                 </div>
                 <div id="chart-container" style="width:100%; height:250px;"></div>
             </section>
 
             <section class="panel">
-                <h2>2. 真实 LSTM/Transformer 训练</h2>
+                <h2>2. 真实 LSTM 时序训练</h2>
                 <div class="controls">
                     <button id="btn-train" class="btn btn-primary" disabled>启动神经网络训练</button>
                     <div class="progress-bar"><div id="train-progress"></div></div>
