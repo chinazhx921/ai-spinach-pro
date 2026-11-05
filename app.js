@@ -1,7 +1,7 @@
-// ====== AI玄学预测 5.0 多彩种核心逻辑 (自建爬虫接口) ======
+// ====== AI玄学预测 5.1 多彩种核心逻辑 (穿透 WAF 版) ======
 
 // 【极其重要】: 这里必须换成你自己最新部署的那个 Worker 的地址！
-const WORKER_API_URL = "spinach-api.chinazhx921.workers.dev"; 
+const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev"; // 已填入你的地址
 
 const LOTTERY_CONFIG = {
     'ssq': { name: '双色球', reds: 6, redMax: 33, blues: 1, blueMax: 16, canRepeat: false },
@@ -41,28 +41,30 @@ document.getElementById('btn-fetch').addEventListener('click', async () => {
     const status = document.getElementById('data-status');
     const btn = document.getElementById('btn-fetch');
     btn.disabled = true;
-    status.innerText = `自建爬虫正在直连 ${currentConfig.name} 官方网站拉取数据...`;
+    status.innerText = `自建爬虫正在解析 ${currentConfig.name} 的 HTML 数据节点...`;
     
     try {
-        // 请求你的自建接口
         const response = await fetch(`${WORKER_API_URL}?type=${currentType}`);
-        if (!response.ok) throw new Error("你的 Worker 未响应，请检查跨域或地址配置");
+        if (!response.ok) throw new Error("Worker 内部抓取异常");
         const resJson = await response.json();
         
         if(resJson && resJson.data && resJson.data.length > 0) {
-           historicalData = resJson.data.reverse(); 
-           // 判断是不是容灾Mock数据
+           // 500.com 的数据是从旧到新排列的，所以不需要 reverse() 了，直接用！
+           // 等等，我们在图表展示时，ECharts 默认最新在右侧，所以原数据如果不 reverse，正好是最新的在最后。
+           // 保险起见，我们检测一下期号大小，确保最新在最后。
+           historicalData = resJson.data.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
+           
            if(historicalData[0].expect.toString().includes('容灾')) {
-               status.innerHTML = `<span style="color:#ffb300">⚠️ 官方防火墙阻断了 Cloudflare 机房，当前已自动启用容灾波动特征集(${historicalData.length}期)。</span>`;
+               status.innerHTML = `<span style="color:#ffb300">⚠️ 发生容灾降级，启用了波动特征集(${historicalData.length}期)。</span>`;
            } else {
-               status.innerHTML = `<span style="color:#00e676">直连成功！自建接口已捕获 ${historicalData.length} 期【${currentConfig.name}】官方数据。</span>`;
+               status.innerHTML = `<span style="color:#00e676">反盾穿透成功！已从 500.com 解析 ${historicalData.length} 期【${currentConfig.name}】真实数据。</span>`;
            }
         } else {
              throw new Error("接口返回了空数据");
         }
     } catch (error) {
         console.warn(error);
-        status.innerHTML = `<span style="color:#ff5252">致命错误: ${error.message}。请务必在 app.js 中配置好你自己部署的 Worker 地址。</span>`;
+        status.innerHTML = `<span style="color:#ff5252">致命错误: ${error.message}。</span>`;
     }
     
     document.getElementById('btn-train').disabled = false;
