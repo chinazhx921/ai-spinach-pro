@@ -1,4 +1,4 @@
-// ====== AI玄学预测 6.0 自动寻轨版 ======
+// ====== AI玄学预测 6.2 完美修复版 ======
 
 const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev"; // 已填入你的地址
 
@@ -13,7 +13,11 @@ let currentConfig = LOTTERY_CONFIG[currentType];
 let historicalData = [];
 let model = null;
 let latestPrediction = null;
+let myChart = null; // 全局图表实例
 
+// ===============================================
+// 核心修复：监听彩种切换时，彻底销毁 ECharts 实例防止白屏卡死
+// ===============================================
 document.getElementById('lottery-type').addEventListener('change', (e) => {
     currentType = e.target.value;
     currentConfig = LOTTERY_CONFIG[currentType];
@@ -30,7 +34,12 @@ document.getElementById('lottery-type').addEventListener('change', (e) => {
     document.getElementById('btn-predict').disabled = true;
     document.getElementById('train-status').innerText = "模型状态：未就绪";
     document.getElementById('train-progress').style.width = '0%';
-    document.getElementById('chart-container').innerHTML = '';
+    
+    if(myChart) {
+        myChart.dispose();
+        myChart = null;
+    }
+    
     document.getElementById('prediction-result').innerHTML = '';
     document.getElementById('score').innerText = '--';
     document.getElementById('hit-rate').innerText = '--';
@@ -51,7 +60,7 @@ document.getElementById('btn-fetch').addEventListener('click', async () => {
            historicalData = resJson.data.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
            
            if(historicalData[0].isMock) {
-               status.innerHTML = `<span style="color:#ffb300">⚠️ WAF 拦截或解析变更 (${historicalData[0].err})，已接管为动态波动特征集(${historicalData.length}期)。</span>`;
+               status.innerHTML = `<span style="color:#ffb300">⚠️ WAF 拦截或解析变更 (${historicalData[0].err})，已接管为动态波动特征集。</span>`;
            } else {
                status.innerHTML = `<span style="color:#00e676">寻轨解析成功！准确提取 ${historicalData.length} 期【${currentConfig.name}】开奖记录。</span>`;
            }
@@ -75,12 +84,17 @@ document.getElementById('btn-fetch').addEventListener('click', async () => {
 });
 
 function renderChart() {
-    const chart = echarts.init(document.getElementById('chart-container'));
+    const chartDom = document.getElementById('chart-container');
+    if (myChart) {
+        myChart.dispose();
+    }
+    myChart = echarts.init(chartDom);
+    
     const sliceData = historicalData.slice(-60);
     const xData = sliceData.map((d, i) => d.expect ? `第${d.expect}期` : `第${i+1}期`);
     const yData = sliceData.map(d => d.red.reduce((a,b)=>a+b, 0));
     
-    chart.setOption({
+    myChart.setOption({
         tooltip: { 
             trigger: 'axis',
             backgroundColor: 'rgba(10, 15, 25, 0.9)',
