@@ -1,7 +1,6 @@
-// ====== AI玄学预测 5.2 终极稳定版 ======
+// ====== AI玄学预测 6.0 自动寻轨版 ======
 
-// 【已为你自动填充 Worker 地址！】
-const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev";
+const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev"; // 已填入你的地址
 
 const LOTTERY_CONFIG = {
     'ssq': { name: '双色球', reds: 6, redMax: 33, blues: 1, blueMax: 16, canRepeat: false },
@@ -25,7 +24,7 @@ document.getElementById('lottery-type').addEventListener('change', (e) => {
     
     const fetchBtn = document.getElementById('btn-fetch');
     fetchBtn.disabled = false;
-    fetchBtn.innerText = "派遣爬虫抓取最新数据";
+    fetchBtn.innerText = "派遣自动寻轨爬虫抓取";
     
     document.getElementById('btn-train').disabled = true;
     document.getElementById('btn-predict').disabled = true;
@@ -41,34 +40,34 @@ document.getElementById('btn-fetch').addEventListener('click', async () => {
     const status = document.getElementById('data-status');
     const btn = document.getElementById('btn-fetch');
     btn.disabled = true;
-    status.innerText = `边缘爬虫正在解析 ${currentConfig.name} 的底层数据节点...`;
+    status.innerText = `特征寻轨引擎正在解析 ${currentConfig.name}...`;
     
     try {
         const response = await fetch(`${WORKER_API_URL}?type=${currentType}`);
-        if (!response.ok) throw new Error("Worker 响应失败，请检查网络或部署状态");
+        if (!response.ok) throw new Error(`Worker HTTP ${response.status}`);
         const resJson = await response.json();
         
         if(resJson && resJson.data && resJson.data.length > 0) {
            historicalData = resJson.data.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
            
            if(historicalData[0].isMock) {
-               status.innerHTML = `<span style="color:#ffb300">⚠️ 发生容灾降级，启用了波动特征集(${historicalData.length}期)。</span>`;
+               status.innerHTML = `<span style="color:#ffb300">⚠️ WAF 拦截或解析变更 (${historicalData[0].err})，已接管为动态波动特征集(${historicalData.length}期)。</span>`;
            } else {
-               status.innerHTML = `<span style="color:#00e676">直连穿透成功！已从 500.com 解析 ${historicalData.length} 期【${currentConfig.name}】真实数据。</span>`;
+               status.innerHTML = `<span style="color:#00e676">寻轨解析成功！准确提取 ${historicalData.length} 期【${currentConfig.name}】开奖记录。</span>`;
            }
         } else {
-             throw new Error("接口返回了空数据");
+             throw new Error("Worker 成功响应，但数据数组为空");
         }
     } catch (error) {
-        console.warn(error);
-        status.innerHTML = `<span style="color:#ff5252">抓取错误: ${error.message}。</span>`;
+        console.error(error);
+        status.innerHTML = `<span style="color:#ff5252">致命异常: ${error.message}。</span>`;
         btn.disabled = false;
-        btn.innerText = "重新尝试抓取";
+        btn.innerText = "重新尝试";
         return;
     }
     
     document.getElementById('btn-train').disabled = false;
-    btn.innerText = "数据池就绪";
+    btn.innerText = "数据池已注入";
     
     if(historicalData.length > 0) {
         renderChart();
