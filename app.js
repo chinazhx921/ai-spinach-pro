@@ -1,7 +1,7 @@
-// ====== AI玄学预测 5.1 多彩种核心逻辑 (穿透 WAF 版) ======
+// ====== AI玄学预测 5.2 终极稳定版 ======
 
-// 【极其重要】: 这里必须换成你自己最新部署的那个 Worker 的地址！
-const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev"; // 已填入你的地址
+// 【已为你自动填充 Worker 地址！】
+const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev";
 
 const LOTTERY_CONFIG = {
     'ssq': { name: '双色球', reds: 6, redMax: 33, blues: 1, blueMax: 16, canRepeat: false },
@@ -41,34 +41,34 @@ document.getElementById('btn-fetch').addEventListener('click', async () => {
     const status = document.getElementById('data-status');
     const btn = document.getElementById('btn-fetch');
     btn.disabled = true;
-    status.innerText = `自建爬虫正在解析 ${currentConfig.name} 的 HTML 数据节点...`;
+    status.innerText = `边缘爬虫正在解析 ${currentConfig.name} 的底层数据节点...`;
     
     try {
         const response = await fetch(`${WORKER_API_URL}?type=${currentType}`);
-        if (!response.ok) throw new Error("Worker 内部抓取异常");
+        if (!response.ok) throw new Error("Worker 响应失败，请检查网络或部署状态");
         const resJson = await response.json();
         
         if(resJson && resJson.data && resJson.data.length > 0) {
-           // 500.com 的数据是从旧到新排列的，所以不需要 reverse() 了，直接用！
-           // 等等，我们在图表展示时，ECharts 默认最新在右侧，所以原数据如果不 reverse，正好是最新的在最后。
-           // 保险起见，我们检测一下期号大小，确保最新在最后。
            historicalData = resJson.data.sort((a, b) => parseInt(a.expect) - parseInt(b.expect));
            
-           if(historicalData[0].expect.toString().includes('容灾')) {
+           if(historicalData[0].isMock) {
                status.innerHTML = `<span style="color:#ffb300">⚠️ 发生容灾降级，启用了波动特征集(${historicalData.length}期)。</span>`;
            } else {
-               status.innerHTML = `<span style="color:#00e676">反盾穿透成功！已从 500.com 解析 ${historicalData.length} 期【${currentConfig.name}】真实数据。</span>`;
+               status.innerHTML = `<span style="color:#00e676">直连穿透成功！已从 500.com 解析 ${historicalData.length} 期【${currentConfig.name}】真实数据。</span>`;
            }
         } else {
              throw new Error("接口返回了空数据");
         }
     } catch (error) {
         console.warn(error);
-        status.innerHTML = `<span style="color:#ff5252">致命错误: ${error.message}。</span>`;
+        status.innerHTML = `<span style="color:#ff5252">抓取错误: ${error.message}。</span>`;
+        btn.disabled = false;
+        btn.innerText = "重新尝试抓取";
+        return;
     }
     
     document.getElementById('btn-train').disabled = false;
-    btn.innerText = "接口就绪";
+    btn.innerText = "数据池就绪";
     
     if(historicalData.length > 0) {
         renderChart();
@@ -110,7 +110,7 @@ function renderChart() {
         },
         grid: { left: '8%', right: '5%', bottom: '15%', top: '10%' },
         xAxis: { type: 'category', data: xData, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } } },
-        yAxis: { type: 'value', name: '首区和值', axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }, scale: true },
+        yAxis: { type: 'value', name: '首区和值', scale: true, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
         series: [{
             data: yData, type: 'line', smooth: true,
             areaStyle: {
