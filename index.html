@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI玄学预测 Pro 4.0 | 多彩种矩阵</title>
+    <title>AI玄学预测 Pro 5.0 | 自建引擎直连版</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
@@ -23,12 +23,11 @@
     
     <div class="app-container">
         <header>
-            <h1>AI数据预测平台 <span class="badge">PRO 4.0 全彩版</span></h1>
-            <p>基于官方真实开奖数据与 LSTM 多维度走势推演</p>
+            <h1>AI数据预测平台 <span class="badge">PRO 5.0 独立引擎版</span></h1>
+            <p>基于 100% 独立研发的边缘爬虫直连官方数据源，多维特征动态张量推演</p>
         </header>
 
         <main>
-            <!-- 新增彩种选择栏 -->
             <section class="lottery-selector-panel">
                 <label for="lottery-type">🔮 当前研究彩种：</label>
                 <select id="lottery-type" class="custom-select">
@@ -39,10 +38,10 @@
             </section>
 
             <section class="panel">
-                <h2>1. 官方开奖数据同步</h2>
+                <h2>1. 自研爬虫数据捕获 (直连官源)</h2>
                 <div class="controls">
-                    <button id="btn-fetch" class="btn">抓取真实历史数据</button>
-                    <span id="data-status">等待同步...</span>
+                    <button id="btn-fetch" class="btn">派遣爬虫抓取最新数据</button>
+                    <span id="data-status">等待指令...</span>
                 </div>
                 <div id="chart-container" style="width:100%; height:250px;"></div>
             </section>

@@ -1,12 +1,12 @@
-// ====== AI玄学预测 4.0 多彩种核心逻辑 ======
+// ====== AI玄学预测 5.0 多彩种核心逻辑 (自建爬虫接口) ======
 
-const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev"; // 强烈建议替换为自己部署的 Worker
+// 【极其重要】: 这里必须换成你自己最新部署的那个 Worker 的地址！
+const WORKER_API_URL = "spinach-api.chinazhx921.workers.dev"; 
 
-// 彩种配置字典
 const LOTTERY_CONFIG = {
     'ssq': { name: '双色球', reds: 6, redMax: 33, blues: 1, blueMax: 16, canRepeat: false },
     'dlt': { name: '大乐透', reds: 5, redMax: 35, blues: 2, blueMax: 12, canRepeat: false },
-    'fc3d': { name: '福彩3D', reds: 3, redMax: 9, blues: 0, blueMax: 0, canRepeat: true } // 3D红球允许0，我们处理时+1统一逻辑并在展示时-1
+    'fc3d': { name: '福彩3D', reds: 3, redMax: 9, blues: 0, blueMax: 0, canRepeat: true }
 };
 
 let currentType = 'ssq';
@@ -15,15 +15,18 @@ let historicalData = [];
 let model = null;
 let latestPrediction = null;
 
-// 监听彩种切换
 document.getElementById('lottery-type').addEventListener('change', (e) => {
     currentType = e.target.value;
     currentConfig = LOTTERY_CONFIG[currentType];
     
-    // 重置状态
     historicalData = [];
     model = null;
-    document.getElementById('data-status').innerText = `已切换至 ${currentConfig.name}，请重新获取数据。`;
+    document.getElementById('data-status').innerText = `已切换至 ${currentConfig.name}，请重新派遣爬虫。`;
+    
+    const fetchBtn = document.getElementById('btn-fetch');
+    fetchBtn.disabled = false;
+    fetchBtn.innerText = "派遣爬虫抓取最新数据";
+    
     document.getElementById('btn-train').disabled = true;
     document.getElementById('btn-predict').disabled = true;
     document.getElementById('train-status').innerText = "模型状态：未就绪";
@@ -34,59 +37,42 @@ document.getElementById('lottery-type').addEventListener('change', (e) => {
     document.getElementById('hit-rate').innerText = '--';
 });
 
-// 1. 获取真实官方开奖数据
 document.getElementById('btn-fetch').addEventListener('click', async () => {
     const status = document.getElementById('data-status');
     const btn = document.getElementById('btn-fetch');
     btn.disabled = true;
-    status.innerText = `正在抓取 ${currentConfig.name} 真实开奖数据库...`;
+    status.innerText = `自建爬虫正在直连 ${currentConfig.name} 官方网站拉取数据...`;
     
     try {
-        const response = await fetch(`${WORKER_API_URL}?type=${currentType}&limit=100`);
-        if (!response.ok) throw new Error("网络响应失败");
+        // 请求你的自建接口
+        const response = await fetch(`${WORKER_API_URL}?type=${currentType}`);
+        if (!response.ok) throw new Error("你的 Worker 未响应，请检查跨域或地址配置");
         const resJson = await response.json();
         
         if(resJson && resJson.data && resJson.data.length > 0) {
            historicalData = resJson.data.reverse(); 
-           status.innerHTML = `<span style="color:#00e676">同步成功！已获取近期 ${historicalData.length} 期【${currentConfig.name}】数据。</span>`;
+           // 判断是不是容灾Mock数据
+           if(historicalData[0].expect.toString().includes('容灾')) {
+               status.innerHTML = `<span style="color:#ffb300">⚠️ 官方防火墙阻断了 Cloudflare 机房，当前已自动启用容灾波动特征集(${historicalData.length}期)。</span>`;
+           } else {
+               status.innerHTML = `<span style="color:#00e676">直连成功！自建接口已捕获 ${historicalData.length} 期【${currentConfig.name}】官方数据。</span>`;
+           }
         } else {
-             throw new Error("数据格式不正确");
+             throw new Error("接口返回了空数据");
         }
     } catch (error) {
         console.warn(error);
-        status.innerHTML = `<span style="color:#ff5252">连接失败(${error.message})。加载 ${currentConfig.name} 降级演示数据。</span>`;
-        historicalData = [];
-        for(let i=0; i<100; i++) historicalData.push(generateFallbackDraw(currentConfig));
+        status.innerHTML = `<span style="color:#ff5252">致命错误: ${error.message}。请务必在 app.js 中配置好你自己部署的 Worker 地址。</span>`;
     }
     
     document.getElementById('btn-train').disabled = false;
-    btn.innerText = "数据已就绪";
-    renderChart();
+    btn.innerText = "接口就绪";
+    
+    if(historicalData.length > 0) {
+        renderChart();
+    }
 });
 
-// 降级演示数据生成器（适配各彩种）
-function generateFallbackDraw(cfg) {
-    let red = [], blue = [];
-    if (cfg.canRepeat) {
-        // 比如 3D (0-9)
-        while(red.length < cfg.reds) red.push(Math.floor(Math.random() * (cfg.redMax + 1)));
-    } else {
-        while(red.length < cfg.reds) {
-            let n = Math.floor(Math.random() * cfg.redMax) + 1;
-            if(!red.includes(n)) red.push(n);
-        }
-        red.sort((a,b)=>a-b);
-        
-        while(blue.length < cfg.blues) {
-            let n = Math.floor(Math.random() * cfg.blueMax) + 1;
-            if(!blue.includes(n)) blue.push(n);
-        }
-        blue.sort((a,b)=>a-b);
-    }
-    return { expect: "演示", red: red, blue: blue };
-}
-
-// 渲染 ECharts
 function renderChart() {
     const chart = echarts.init(document.getElementById('chart-container'));
     const sliceData = historicalData.slice(-60);
@@ -94,10 +80,35 @@ function renderChart() {
     const yData = sliceData.map(d => d.red.reduce((a,b)=>a+b, 0));
     
     chart.setOption({
-        tooltip: { trigger: 'axis' },
+        tooltip: { 
+            trigger: 'axis',
+            backgroundColor: 'rgba(10, 15, 25, 0.9)',
+            borderColor: '#00e5ff',
+            textStyle: { color: '#fff' },
+            formatter: function(params) {
+                let idx = params[0].dataIndex;
+                let item = sliceData[idx];
+                let expect = item.expect;
+                let is3D = currentType === 'fc3d';
+                let redStr = item.red.map(n => is3D ? n.toString() : n.toString().padStart(2, '0')).join(' ');
+                let blueStr = (item.blue && item.blue.length > 0) ? 
+                    (' | <span style="color:#448aff">' + item.blue.map(n => n.toString().padStart(2, '0')).join(' ') + '</span>') : '';
+                let redColor = is3D ? '#00e676' : '#ff5252';
+                
+                return `
+                    <div style="font-family: monospace; font-size: 14px;">
+                        期号: <b>${expect}</b><br/>
+                        前区和值: ${params[0].value}<br/>
+                        <div style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.2);">
+                            开奖: <span style="color:${redColor}; font-weight:bold; font-size:16px;">${redStr}</span>${blueStr}
+                        </div>
+                    </div>
+                `;
+            }
+        },
         grid: { left: '8%', right: '5%', bottom: '15%', top: '10%' },
         xAxis: { type: 'category', data: xData, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } } },
-        yAxis: { type: 'value', name: '首区和值', axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
+        yAxis: { type: 'value', name: '首区和值', axisLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }, scale: true },
         series: [{
             data: yData, type: 'line', smooth: true,
             areaStyle: {
@@ -112,26 +123,20 @@ function renderChart() {
     });
 }
 
-// 2. 动态维度 LSTM 模型训练
 document.getElementById('btn-train').addEventListener('click', async () => {
     document.getElementById('btn-train').disabled = true;
     const status = document.getElementById('train-status');
     const progressBar = document.getElementById('train-progress');
-    
     if(historicalData.length < 20) return;
-
     status.innerText = `构建 ${currentConfig.name} 专属张量环境...`;
     
     const windowSize = 10;
     const xs = [], ys = [];
     const maxVal = currentConfig.canRepeat ? 9 : currentConfig.redMax;
 
-    // 提取特征 (这里只对前区/红球进行时序建模，后区蓝球由玄学随机补充以减少模型复杂度)
     for(let i=0; i < historicalData.length - windowSize; i++) {
         let xWindow = [];
-        for(let j=0; j<windowSize; j++) {
-            xWindow.push(...historicalData[i+j].red.map(n => n / maxVal)); 
-        }
+        for(let j=0; j<windowSize; j++) { xWindow.push(...historicalData[i+j].red.map(n => n / maxVal)); }
         ys.push(historicalData[i+windowSize].red.map(n => n / maxVal));
         xs.push(xWindow);
     }
@@ -139,17 +144,14 @@ document.getElementById('btn-train').addEventListener('click', async () => {
     const tensorX = tf.tensor2d(xs);
     const tensorY = tf.tensor2d(ys);
     
-    // 动态网络架构
     model = tf.sequential();
     model.add(tf.layers.dense({units: 128, activation: 'relu', inputShape: [windowSize * currentConfig.reds]}));
     model.add(tf.layers.dropout({rate: 0.25}));
     model.add(tf.layers.dense({units: 64, activation: 'relu'}));
-    model.add(tf.layers.dense({units: currentConfig.reds, activation: 'sigmoid'})); // 动态输出神经元数
-    
+    model.add(tf.layers.dense({units: currentConfig.reds, activation: 'sigmoid'}));
     model.compile({ optimizer: tf.train.adam(0.005), loss: 'meanSquaredError' });
     
     status.innerText = "进行前向传播与反向求导训练...";
-    
     const epochs = 50;
     await model.fit(tensorX, tensorY, {
         epochs: epochs, batchSize: 16,
@@ -163,7 +165,6 @@ document.getElementById('btn-train').addEventListener('click', async () => {
     });
     
     tensorX.dispose(); tensorY.dispose();
-    
     status.innerHTML = `<span style="color:#00e676">${currentConfig.name} 模型已收敛就绪。</span>`;
     document.getElementById('btn-predict').disabled = false;
     document.getElementById('btn-train').innerText = "重训网络";
@@ -173,7 +174,6 @@ document.getElementById('btn-train').addEventListener('click', async () => {
     document.getElementById('hit-rate').innerText = `${(Math.random() * 25 + 30).toFixed(1)}%`;
 });
 
-// 3. 动态预测号码生成
 document.getElementById('btn-predict').addEventListener('click', async () => {
     if(!model) return;
     document.getElementById('btn-predict').disabled = true;
@@ -183,21 +183,15 @@ document.getElementById('btn-predict').addEventListener('click', async () => {
     const maxVal = currentConfig.canRepeat ? 9 : currentConfig.redMax;
     
     let inputVector = [];
-    for(let j=0; j<windowSize; j++) {
-        inputVector.push(...recentData[j].red.map(n => n / maxVal));
-    }
-    
+    for(let j=0; j<windowSize; j++) { inputVector.push(...recentData[j].red.map(n => n / maxVal)); }
     const inputTensor = tf.tensor2d([inputVector]);
     const predictionTensor = model.predict(inputTensor);
     const rawPrediction = await predictionTensor.array();
     inputTensor.dispose(); predictionTensor.dispose();
 
-    // 逆归一化并清洗数据
     let predictedReds = rawPrediction[0].map(val => Math.round(val * maxVal));
-    
     if (!currentConfig.canRepeat) {
-        // 如果不允许重复 (双色球, 大乐透)，去重并填补
-        predictedReds = predictedReds.map(v => Math.max(1, Math.min(v, maxVal))); // 限制范围
+        predictedReds = predictedReds.map(v => Math.max(1, Math.min(v, maxVal)));
         let uniqueReds = Array.from(new Set(predictedReds));
         while(uniqueReds.length < currentConfig.reds) {
             let n = Math.floor(Math.random() * maxVal) + 1;
@@ -205,11 +199,9 @@ document.getElementById('btn-predict').addEventListener('click', async () => {
         }
         predictedReds = uniqueReds.slice(0, currentConfig.reds).sort((a,b)=>a-b);
     } else {
-        // 3D 允许重复，限制在0-9
         predictedReds = predictedReds.map(v => Math.max(0, Math.min(v, 9)));
     }
     
-    // 生成蓝球 (后区)
     let predictedBlue = [];
     if(currentConfig.blues > 0) {
         while(predictedBlue.length < currentConfig.blues) {
@@ -224,9 +216,7 @@ document.getElementById('btn-predict').addEventListener('click', async () => {
     const container = document.getElementById('prediction-result');
     container.innerHTML = '';
     
-    // 渲染红球 (如果是3D，使用绿色球以示区别)
     let redBallClass = currentType === 'fc3d' ? 'ball green' : 'ball';
-    
     latestPrediction.red.forEach((n, i) => {
         setTimeout(() => {
             const ball = document.createElement('div');
@@ -235,7 +225,6 @@ document.getElementById('btn-predict').addEventListener('click', async () => {
             container.appendChild(ball);
         }, i * 200);
     });
-    // 渲染蓝球
     latestPrediction.blue.forEach((n, i) => {
         setTimeout(() => {
             const ball = document.createElement('div');
@@ -251,18 +240,14 @@ document.getElementById('btn-predict').addEventListener('click', async () => {
     }, 1500);
 });
 
-// 保存至个人档案
 document.getElementById('btn-save').addEventListener('click', () => {
     if(!latestPrediction) return;
     const archiveList = document.getElementById('archive-list');
-    
     const li = document.createElement('li');
     const dateStr = new Date().toLocaleString();
     const is3D = latestPrediction.type === 'fc3d';
-    
     const reds = latestPrediction.red.map(n => is3D ? n : n.toString().padStart(2, '0')).join(' ');
     const blues = latestPrediction.blue.length > 0 ? (' | <span style="color:#448aff; font-weight:bold">' + latestPrediction.blue.map(n => n.toString().padStart(2, '0')).join(' ') + '</span>') : '';
-    
     const cName = LOTTERY_CONFIG[latestPrediction.type].name;
     const redColor = is3D ? '#00e676' : '#ff5252';
 
