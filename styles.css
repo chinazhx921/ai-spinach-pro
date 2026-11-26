@@ -17,7 +17,7 @@ body, html {
 /* ============ 山水背景层 ============ */
 #scenery-container {
   position: fixed; inset: 0; width: 100vw; height: 100vh;
-  z-index: -1; overflow: hidden; pointer-events: none;
+  z-index: 0; overflow: hidden; pointer-events: none;
   background: linear-gradient(to bottom,
     #f4fbf0 0%, #e6f6e9 22%, #cdeedd 45%, #a9dfc0 62%, #8fd3ab 78%, #6fc48f 100%);
 }
