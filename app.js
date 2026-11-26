@@ -1,7 +1,8 @@
-// ====== AI玄学预测 7.0 真实数据版 ======
-// 配合 worker.js 使用真实开奖数据；切换彩种 / 图表销毁已彻底修复
+// ====== AI玄学预测 7.1 真实数据版 ======
+// 数据接口已改为同域 Pages Function（/api/lottery），多源抓取 + 新鲜度仲裁；
+// 旧版依赖的 huiniao 源自 2026-11-12 起停更，导致数据一直不更新。
 
-const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev"; // 部署新 worker 后保持此地址即可
+const WORKER_API_URL = "/api/lottery"; // 同域接口，随 Pages 一起部署，无需单独维护 Worker
 
 const LOTTERY_CONFIG = {
   ssq:  { name: "双色球", reds: 6, redMax: 33, blues: 1, blueMax: 16, canRepeat: false },
@@ -82,10 +83,15 @@ document.getElementById("btn-fetch").addEventListener("click", async () => {
         });
 
       const src = resJson.source || "";
+      const latestInfo = resJson.latestExpect
+        ? `最新一期 ${resJson.latestExpect}${resJson.latestDate ? `（${resJson.latestDate}）` : ""}`
+        : "";
       if (historicalData[0]?.isMock || src === "mock") {
         status.innerHTML = `<span style="color:#ffb300">⚠️ 真实源暂时不可用，已使用高仿真演示数据（${historicalData.length}期）。${historicalData[0]?.err ? "原因：" + historicalData[0].err : ""}</span>`;
+      } else if (resJson.stale) {
+        status.innerHTML = `<span style="color:#ffb300">⚠️ 数据已同步（${historicalData.length}期，来源：${src}），但${latestInfo}，数据源可能尚未更新到最新开奖，请稍后再试。</span>`;
       } else {
-        status.innerHTML = `<span style="color:#00e676">✓ 真实数据同步成功！共 ${historicalData.length} 期【${currentConfig.name}】官方开奖记录（来源：${src || "real"}）。</span>`;
+        status.innerHTML = `<span style="color:#00e676">✓ 真实数据同步成功！共 ${historicalData.length} 期【${currentConfig.name}】官方开奖记录，${latestInfo}（来源：${src || "real"}）。</span>`;
       }
     } else {
       throw new Error("Worker 返回空数据");
@@ -244,11 +250,13 @@ document.getElementById("btn-train").addEventListener("click", async () => {
 
   status.innerText = "进行前向传播与反向求导训练...";
   const epochs = 50;
+  let finalLoss = null;
   await model.fit(tensorX, tensorY, {
     epochs,
     batchSize: 16,
     callbacks: {
       onEpochEnd: (epoch, logs) => {
+        finalLoss = logs.loss;
         const progress = ((epoch + 1) / epochs) * 100;
         progressBar.style.width = progress + "%";
         status.innerText = `训练深度: Epoch ${epoch + 1}/${epochs} | Loss: ${logs.loss.toFixed(4)}`;
@@ -264,8 +272,34 @@ document.getElementById("btn-train").addEventListener("click", async () => {
   trainBtn.innerText = "重训网络";
   trainBtn.disabled = false;
 
-  document.getElementById("score").innerText = `MSE: ${(Math.random() * 0.05 + 0.01).toFixed(4)}`;
-  document.getElementById("hit-rate").innerText = `${(Math.random() * 25 + 30).toFixed(1)}%`;
+  // 如实展示：最终训练 Loss + 用最后一期做的回测命中（不再用随机数冒充）
+  document.getElementById("score").innerText =
+    finalLoss !== null ? `Loss: ${finalLoss.toFixed(4)}` : "--";
+  try {
+    const backWindow = historicalData.slice(-windowSize - 1, -1);
+    const actual = historicalData[historicalData.length - 1].red;
+    let backInput = [];
+    for (let j = 0; j < windowSize; j++) {
+      backInput.push(...backWindow[j].red.map((n) => n / maxVal));
+    }
+    const backTensor = tf.tensor2d([backInput]);
+    const backPred = model.predict(backTensor);
+    const backRaw = (await backPred.array())[0];
+    backTensor.dispose();
+    backPred.dispose();
+    let hits;
+    if (currentConfig.canRepeat) {
+      const pred = backRaw.map((v) => Math.max(0, Math.min(Math.round(v * maxVal), 9)));
+      hits = pred.filter((v, i) => v === actual[i]).length;
+      document.getElementById("hit-rate").innerText = `回测命中 ${hits}/${actual.length} 位`;
+    } else {
+      const pred = backRaw.map((v) => Math.max(1, Math.min(Math.round(v * maxVal), maxVal)));
+      hits = pred.filter((v) => actual.includes(v)).length;
+      document.getElementById("hit-rate").innerText = `回测命中 ${hits}/${actual.length} 红`;
+    }
+  } catch (_) {
+    document.getElementById("hit-rate").innerText = "--";
+  }
 });
 
 // ========== 预测 ==========

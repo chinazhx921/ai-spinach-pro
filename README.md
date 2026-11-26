@@ -1,45 +1,43 @@
-# AI-Spinach Pro 7.0（真实开奖数据版）
+# AI-Spinach Pro 7.1（真实开奖数据版）
 
-## 核心升级
+## 7.1 修复：数据不更新
 
-- **真实数据**：Worker 优先从公开稳定接口拉取双色球 / 大乐透 / 福彩3D 官方开奖记录
-- **多源容错**：主源失败自动尝试 500.com 解析，全部失败才降级为高仿真 Mock
+旧接口依赖的 huiniao 数据源自 **2026-11-12** 起停止更新，站点一直返回两周前的开奖数据（双色球停在 2026130 期，实际已开到 2026135 期）。
+
+修复方案：数据接口改为同域 **Cloudflare Pages Function**（`functions/api/lottery.js`），随前端一起自动部署，不再需要手动维护单独的 Worker：
+
+- **多源抓取**：2xc.com 开奖表格（直连被拦时走 Google 翻译代理兜底）+ huiniao JSON 接口
+- **新鲜度仲裁**：取最新期号最大的那份数据，某源停更不会再冒充实时数据
+- **如实提示**：接口返回 `latestExpect / latestDate / stale`，前端会显示最新一期和日期；数据过期时明确警告
+- **诚实指标**：训练面板的 Loss 改为真实最终 Loss，命中率改为用最后一期做的回测结果（旧版是随机数）
+
+旧的独立 Worker（`spinach-api.chinazhx921.workers.dev`）已不再被前端引用，可以在 Cloudflare 后台删除。
+
+## 核心功能
+
+- **真实数据**：双色球 / 大乐透 / 福彩3D 官方开奖记录（多源容错，全部失败才降级为演示数据并明确标注）
 - **切换无卡死**：彩种切换时完整销毁 ECharts 实例 + 重置按钮与模型
-- **前端健壮**：兼容真实数据与 Mock 数据，状态提示更清晰
+- **前端健壮**：兼容真实数据与演示数据，状态提示包含最新期号与日期
 
-## 部署步骤（必做）
+## 部署步骤
 
-### 1. 更新 Cloudflare Worker（关键）
-
-1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → Workers & Pages
-2. 找到你的 Worker（`spinach-api.chinazhx921.workers.dev`）
-3. 把本包中的 **`worker.js` 全部代码** 复制粘贴进去
-4. 点击 **Save and Deploy**
-
-> 不更新 Worker 的话，前端仍然会请求旧接口，可能继续拿不到真实数据。
-
-### 2. 更新前端（GitHub + Pages）
-
-把以下文件推送到你的 GitHub 仓库（覆盖原文件）：
+把以下文件推送到 GitHub 仓库（覆盖原文件），Cloudflare Pages 会自动重新部署（含 `functions/` 接口）：
 
 - `index.html`
 - `app.js`
 - `styles.css`
+- `functions/api/lottery.js`（新增）
 
-Cloudflare Pages 会自动重新部署。
-
-`app.js` 里已经写好你的 Worker 地址：
+前端请求同域接口，无需改地址：
 
 ```js
-const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev";
+const WORKER_API_URL = "/api/lottery";
 ```
-
-无需修改（除非你换了 Worker 名称）。
 
 ## 使用说明
 
 1. 选择彩种（双色球 / 大乐透 / 福彩3D）
-2. 点击「派遣自动寻轨爬虫抓取」→ 应显示「真实数据同步成功」
+2. 点击「派遣自动寻轨爬虫抓取」→ 应显示「真实数据同步成功」并带最新一期期号与日期
 3. 启动神经网络训练
 4. 生成 AI 预测号码
 5. 可保存到个人档案
@@ -48,16 +46,16 @@ const WORKER_API_URL = "https://spinach-api.chinazhx921.workers.dev";
 
 ## 数据说明
 
-- 主数据源返回的是近期真实开奖号码与期号
-- 成功时状态栏会显示来源（如 `huiniao-real`）
+- 接口 `GET /api/lottery?type=ssq|dlt|fc3d&limit=100` 返回近期真实开奖号码与期号（按期号升序）
+- 成功时状态栏会显示来源（如 `2xc-real`）与最新一期
 - 若所有真实源均不可用，会自动使用演示数据，并明确提示「真实源暂时不可用」
 
 ## 文件清单
 
 | 文件 | 说明 |
 |------|------|
-| `worker.js` | Cloudflare Worker（真实数据抓取引擎） |
-| `app.js` | 前端逻辑（已修复切换与图表） |
+| `functions/api/lottery.js` | Pages Function（多源数据抓取 + 新鲜度仲裁） |
+| `app.js` | 前端逻辑 |
 | `index.html` | 页面结构 |
 | `styles.css` | 样式 |
 
