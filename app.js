@@ -87,18 +87,18 @@ document.getElementById("btn-fetch").addEventListener("click", async () => {
         ? `最新一期 ${resJson.latestExpect}${resJson.latestDate ? `（${resJson.latestDate}）` : ""}`
         : "";
       if (historicalData[0]?.isMock || src === "mock") {
-        status.innerHTML = `<span style="color:#ffb300">⚠️ 真实源暂时不可用，已使用高仿真演示数据（${historicalData.length}期）。${historicalData[0]?.err ? "原因：" + historicalData[0].err : ""}</span>`;
+        status.innerHTML = `<span style="color:#b26a00">⚠️ 真实源暂时不可用，已使用高仿真演示数据（${historicalData.length}期）。${historicalData[0]?.err ? "原因：" + historicalData[0].err : ""}</span>`;
       } else if (resJson.stale) {
-        status.innerHTML = `<span style="color:#ffb300">⚠️ 数据已同步（${historicalData.length}期，来源：${src}），但${latestInfo}，数据源可能尚未更新到最新开奖，请稍后再试。</span>`;
+        status.innerHTML = `<span style="color:#b26a00">⚠️ 数据已同步（${historicalData.length}期，来源：${src}），但${latestInfo}，数据源可能尚未更新到最新开奖，请稍后再试。</span>`;
       } else {
-        status.innerHTML = `<span style="color:#00e676">✓ 真实数据同步成功！共 ${historicalData.length} 期【${currentConfig.name}】官方开奖记录，${latestInfo}（来源：${src || "real"}）。</span>`;
+        status.innerHTML = `<span style="color:#0e7a3d">✓ 真实数据同步成功！共 ${historicalData.length} 期【${currentConfig.name}】官方开奖记录，${latestInfo}（来源：${src || "real"}）。</span>`;
       }
     } else {
       throw new Error("Worker 返回空数据");
     }
   } catch (error) {
     console.error(error);
-    status.innerHTML = `<span style="color:#ff5252">抓取失败: ${error.message}。请稍后重试。</span>`;
+    status.innerHTML = `<span style="color:#c62828">抓取失败: ${error.message}。请稍后重试。</span>`;
     btn.disabled = false;
     btn.innerText = "重新尝试";
     return;
@@ -131,7 +131,7 @@ function renderChart() {
     tooltip: {
       trigger: "axis",
       backgroundColor: "rgba(10, 15, 25, 0.92)",
-      borderColor: "#00e5ff",
+      borderColor: "#1e7d46",
       textStyle: { color: "#fff" },
       formatter: function (params) {
         const idx = params[0].dataIndex;
@@ -147,7 +147,7 @@ function renderChart() {
               item.blue.map((n) => n.toString().padStart(2, "0")).join(" ") +
               "</span>"
             : "";
-        const redColor = is3D ? "#00e676" : "#ff5252";
+        const redColor = is3D ? "#0e7a3d" : "#c62828";
         return `
           <div style="font-family:monospace;font-size:13px;">
             期号: <b>${item.expect || ""}</b><br/>
@@ -162,16 +162,16 @@ function renderChart() {
     xAxis: {
       type: "category",
       data: xData,
-      axisLine: { lineStyle: { color: "rgba(255,255,255,0.2)" } },
-      axisLabel: { color: "#90a4ae", fontSize: 10 },
+      axisLine: { lineStyle: { color: "rgba(20,83,45,0.35)" } },
+      axisLabel: { color: "#14532d", fontSize: 10 },
     },
     yAxis: {
       type: "value",
       name: "前区和值",
       scale: true,
-      axisLine: { lineStyle: { color: "rgba(255,255,255,0.2)" } },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)" } },
-      nameTextStyle: { color: "#90a4ae" },
+      axisLine: { lineStyle: { color: "rgba(20,83,45,0.35)" } },
+      splitLine: { lineStyle: { color: "rgba(20,83,45,0.12)" } },
+      nameTextStyle: { color: "#14532d" },
     },
     series: [
       {
@@ -180,17 +180,17 @@ function renderChart() {
         smooth: true,
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: "rgba(0, 229, 255, 0.55)" },
-            { offset: 1, color: "rgba(0, 92, 151, 0.03)" },
+            { offset: 0, color: "rgba(30, 125, 70, 0.45)" },
+            { offset: 1, color: "rgba(30, 125, 70, 0.03)" },
           ]),
         },
-        lineStyle: { color: "#00e5ff", width: 2 },
-        itemStyle: { color: "#00e5ff" },
+        lineStyle: { color: "#1e7d46", width: 2 },
+        itemStyle: { color: "#1e7d46" },
         symbol: "circle",
         symbolSize: 5,
       },
     ],
-    textStyle: { color: "#b0bec5" },
+    textStyle: { color: "#14532d" },
   });
 
   window.addEventListener("resize", () => {
@@ -267,7 +267,7 @@ document.getElementById("btn-train").addEventListener("click", async () => {
   tensorX.dispose();
   tensorY.dispose();
 
-  status.innerHTML = `<span style="color:#00e676">${currentConfig.name} 模型已收敛就绪。</span>`;
+  status.innerHTML = `<span style="color:#0e7a3d">${currentConfig.name} 模型已收敛就绪。</span>`;
   document.getElementById("btn-predict").disabled = false;
   trainBtn.innerText = "重训网络";
   trainBtn.disabled = false;
@@ -394,13 +394,13 @@ document.getElementById("btn-save").addEventListener("click", () => {
         "</span>"
       : "";
   const cName = LOTTERY_CONFIG[latestPrediction.type].name;
-  const redColor = is3D ? "#00e676" : "#ff5252";
+  const redColor = is3D ? "#0e7a3d" : "#c62828";
 
   li.innerHTML = `
     <span style="font-size:1.1rem;font-family:monospace;">
       <span style="color:${redColor};font-weight:bold">[${cName}] ${reds}</span>${blues}
     </span>
-    <span style="font-size:0.85rem;color:#78909c;">${dateStr}</span>
+    <span style="font-size:0.85rem;color:#47685a;">${dateStr}</span>
   `;
   archiveList.prepend(li);
 });
